@@ -1,2 +1,3 @@
 # HTTP Header Scanner
- Scans HTTP headers to ensure they meet OWASP best practices
+
+A simple script that scans the HTTP response headers to ensure they meet best practices.
