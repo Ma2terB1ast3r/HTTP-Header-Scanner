@@ -51,33 +51,36 @@ def analyseHeaders(requiredHeaders, responseHeaders):
 def outputResults(results, requiredHeaders):
     '''Outputs the results in a table using the rich library.
     '''
-    # Init rich console
-    console = Console()
+    # Generate Tables
+    with console.status("[bold green]Generating report...") as status:
+        # Best Practice Headers Table
+        bp_table = Table(title="Best Practice Headers")
+        bp_table.add_column("Header")
+        bp_table.add_column("Value")
+        bp_table.add_column("Expected Value")
+        for header, value in results['bestPracticeHeaders'].items():
+            bp_table.add_row(header, value, requiredHeaders[header], style="green")
 
-    # Best Practice Headers Table
-    bp_table = Table(title="Best Practice Headers")
-    bp_table.add_column("Header")
-    bp_table.add_column("Value")
-    bp_table.add_column("Expected Value")
-    for header, value in results['bestPracticeHeaders'].items():
-        bp_table.add_row(header, value, requiredHeaders[header], style="green")
+        # Not Best Practice Headers Table
+        nbp_table = Table(title="Not Best Practice Headers")
+        nbp_table.add_column("Header")
+        nbp_table.add_column("Value")
+        nbp_table.add_column("Expected Value")
+        for header, value in results['notBestPracticeHeaders'].items():
+            nbp_table.add_row(header, value, requiredHeaders[header], style="yellow")
+
+        # Missing Headers Table
+        mi_table = Table(title="Missing Headers")
+        mi_table.add_column("Header")
+        mi_table.add_column("Expected Value")
+        for header, value in results['missingHeaders'].items():
+            mi_table.add_row(header, requiredHeaders[header], style="red")
+
+        console.log("Report generated")
+
+    # Print tables
     console.print(bp_table)
-
-    # Not Best Practice Headers Table
-    nbp_table = Table(title="Not Best Practice Headers")
-    nbp_table.add_column("Header")
-    nbp_table.add_column("Value")
-    nbp_table.add_column("Expected Value")
-    for header, value in results['notBestPracticeHeaders'].items():
-        nbp_table.add_row(header, value, requiredHeaders[header], style="yellow")
     console.print(nbp_table)
-
-    # Missing Headers Table
-    mi_table = Table(title="Missing Headers")
-    mi_table.add_column("Header")
-    mi_table.add_column("Expected Value")
-    for header, value in results['missingHeaders'].items():
-        mi_table.add_row(header, requiredHeaders[header], style="red")
     console.print(mi_table)
 
     # Print count of each type of header
@@ -87,14 +90,24 @@ def outputResults(results, requiredHeaders):
 
 
 def main():
+    # Init rich console
+    global console
+    console = Console()
+
     # Fetch latest best practices
-    requiredHeaders = fetchLatestPractices()
+    with console.status("[bold green]Fetching latest best practices...") as status:
+        requiredHeaders = fetchLatestPractices()
+        console.log("Fetched latest best practices")
 
     # Fetch target headers
-    targetHeaders = requests.get(URL).headers
+    with console.status("[bold green]Fetching headers for target...") as status:
+        targetHeaders = requests.get(URL).headers
+        console.log("Fetched target headers")
 
     # Check target headers against best practices
-    results = analyseHeaders(requiredHeaders, targetHeaders)
+    with console.status("[bold green]Analysing headers...") as status:
+        results = analyseHeaders(requiredHeaders, targetHeaders)
+        console.log("Headers analysed")
 
     # Output results
     outputResults(results, requiredHeaders)
