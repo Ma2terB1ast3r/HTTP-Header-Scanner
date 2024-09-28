@@ -5,7 +5,8 @@ A simple script that scans the HTTP response headers to ensure they meet the OWA
 ## Features
 
 - Fetches the latest best practices from the OWASP Secure Headers Project
-- Scans the HTTP response headers to ensure they meet the best practices
+- Scans the HTTP response headers to ensure they are configured following the current best practices
+- Scans for headers that unnecessarily expose information
 - Generates a report of the results
 
 ## Dependencies
@@ -16,7 +17,7 @@ A simple script that scans the HTTP response headers to ensure they meet the OWA
 
 ## To Do
 
-- [ ] Check for headers that unnecessarily expose information
+- [X] Check for headers that unnecessarily expose information
 - [ ] Use command line arguments to specify the URL
 - [ ] Check multiple URLs at once
 - [ ] Excluded headers (e.g. 'Clear-Site-Data')
