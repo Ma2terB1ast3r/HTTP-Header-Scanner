@@ -18,7 +18,7 @@ A simple script that scans the HTTP response headers to ensure they meet the OWA
 ## To Do
 
 - [X] Check for headers that unnecessarily expose information
-- [ ] Use command line arguments to specify the URL
+- [X] Use command line arguments to specify the URL
 - [ ] Check multiple URLs at once
 - [ ] Excluded headers (e.g. 'Clear-Site-Data')
 - [ ] Mutli-threading?

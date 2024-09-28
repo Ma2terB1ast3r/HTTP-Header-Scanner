@@ -1,16 +1,21 @@
 import requests
+import sys
 from rich.console import Console
 from rich.table import Table
+from rich.panel import Panel
 
 requiredHeaders = {}
 
 URL = ''
 
+options = {
+    'verbose': False
+}
+
 def fetchLatestConfigProposal():
     '''Fetches the latest 'Configuration Proposal' from the OWASP secure headers project. https://owasp.org/www-project-secure-headers/
     '''
     OWASP_HEADERS = requests.get('https://owasp.org/www-project-secure-headers/ci/headers_add.json').json()
-
     headers = {}
     for key in OWASP_HEADERS['headers']:
         headers[key['name']] = key['value']
@@ -21,7 +26,6 @@ def fetchLatestDisclosureHeaders():
     '''Fetches the latest headers that disclose information from the OWASP secure headers project. https://owasp.org/www-project-secure-headers/
     '''
     OWASP_HEADERS = requests.get('https://owasp.org/www-project-secure-headers/ci/headers_remove.json').json()
-
     headers = OWASP_HEADERS['headers']
 
     return headers
@@ -71,7 +75,6 @@ def analyseHeaders(requiredHeaders, responseHeaders):
         missingHeaders = requiredHeaders - responseHeaders.keys()
         for header in missingHeaders:
             results['missingHeaders'][header] = ''
-
 
     return results
 
@@ -144,11 +147,54 @@ def outputInfoDisclosureResults(results, requiredHeaders):
     console.print(f"Present Headers: {len(results['presentHeaders'])}", style="red")
     console.print(f"Missing Headers: {len(results['missingHeaders'])}", style="green")
 
-def main():
-    # Init rich console
-    global console
-    console = Console()
+# Scan the target URL for configuration headers
+def configScan():
+    '''Performs a scan of the target URL for configuration headers.
+    '''
+    # Fetch latest best practices
+    with console.status("[bold green]Fetching latest best practices...") as status:
+        configProposedHeaders = fetchLatestConfigProposal()
+        console.log("Fetched latest best practices")
 
+    # Fetch target headers
+    with console.status("[bold green]Fetching headers for target...") as status:
+        targetHeaders = requests.get(URL).headers
+        console.log("Fetched target headers")
+
+    # Check target headers against best practices
+    with console.status("[bold green]Analysing headers...") as status:
+        configResults = analyseHeaders(configProposedHeaders, targetHeaders)
+        console.log("Configuration of headers analysed")
+
+    # Output results
+    outputConfigProposalResults(configResults, configProposedHeaders)
+
+# Scan the target URL for information disclosure headers
+def disclosureScan():
+    '''Performs a scan of the target URL for information disclosure headers.
+    '''
+    # Fetch latest best practices
+    with console.status("[bold green]Fetching latest best practices...") as status:
+        infoDisclosureHeaders = fetchLatestDisclosureHeaders()
+        console.log("Fetched latest best practices")
+
+    # Fetch target headers
+    with console.status("[bold green]Fetching headers for target...") as status:
+        targetHeaders = requests.get(URL).headers
+        console.log("Fetched target headers")
+
+    # Check target headers against best practices
+    with console.status("[bold green]Analysing headers...") as status:
+        disclosureResults = analyseHeaders(infoDisclosureHeaders, targetHeaders)
+        console.log("Information disclosure headers analysed")
+
+    # Output results
+    outputInfoDisclosureResults(disclosureResults, infoDisclosureHeaders)
+
+# Full scan of the target URL
+def fullScan():
+    '''Performs a full scan of the target URL.
+    '''
     # Fetch latest best practices
     with console.status("[bold green]Fetching latest best practices...") as status:
         configProposedHeaders = fetchLatestConfigProposal()
@@ -170,6 +216,88 @@ def main():
     # Output results
     outputConfigProposalResults(configResults, configProposedHeaders)
     outputInfoDisclosureResults(disclosureResults, infoDisclosureHeaders)
+
+# Print help menu
+def helpMenu():
+    '''Displays the help menu.
+    '''
+    helpPanel = Panel.fit('''[bold]Description:[/bold]
+A simple script to scan a URL for security headers. The script will compare the headers of the target URL with the latest best practices from the OWASP Secure Headers project.
+
+[bold]Simple Usage:[/bold]
+python scanner.py -u [bold]URL[/bold] -f
+
+[bold]Options:[/bold]
+-c, --config        Perform a scan of the target URL for configuration headers
+-d, --disclosure    Perform a scan of the target URL for information disclosure headers
+-f, --full          Perform a full scan of the target URL
+-h, --help          Display this help menu
+-u, --url [bold]URL[/bold]       The URL to scan
+-v, --verbose       Display verbose output
+
+[bold]Examples:[/bold]
+python scanner.py https://example.com''', title="Help Menu:", title_align="left")
+
+    console.print(helpPanel)
+
+def main():
+    # Init rich console
+    global console
+    console = Console()
+
+    # Check if no arguments are passed default to full scan with local URL
+    if len(sys.argv) == 1:
+        fullScan()
+        return 0
+
+    # If invalid arguments are passed
+    valid_args = ['-c', '--config', '-d', '--disclosure', '-f', '--full', '-h', '--help', '-u', '--url', '-v', '--verbose']
+    for arg in sys.argv[1:]:
+        if arg.startswith('-') and arg not in valid_args:
+            console.print(f"[bold red]Error:[/bold red] Invalid argument: {arg}")
+            console.print("Use -h or --help for help menu")
+            return 0
+
+    # Show help menu
+    if '-h' in sys.argv:
+        helpMenu()
+        return 0
+
+    # Set options
+    if '-v' in sys.argv or '--verbose' in sys.argv:
+        options['verbose'] = True
+
+    # Set URL
+    if '-u' in sys.argv:
+        URL = sys.argv[sys.argv.index('-u')+1]
+        if len(sys.argv) == 3:
+            console.print("No scan type specified, defaulting to full scan")
+            console.print(URL)
+            fullScan()
+            return 0
+    elif '--url' in sys.argv:
+        URL = sys.argv[sys.argv.index('--url')+1]
+        if len(sys.argv) == 3:
+            console.print("No scan type specified, defaulting to full scan")
+            console.print(URL)
+            fullScan()
+            return 0
+
+    # Check for scan type
+    if '-f' in sys.argv or '--full' in sys.argv:
+        fullScan()
+        return 0
+    if '-c' in sys.argv or '--config' in sys.argv:
+        configScan()
+        return 0
+    if '-d' in sys.argv or '--disclosure' in sys.argv:
+        disclosureScan()
+        return 0
+
+    # Catch all if nothing happened (shouldn't be reached)
+    console.print("[bold red]Error:[/bold red] Unknown error occured")
+    console.print("Use -h or --help for help menu")
+    return 1
 
 if __name__ == "__main__":
     main()
