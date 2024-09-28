@@ -83,21 +83,24 @@ def outputConfigProposalResults(results, requiredHeaders):
     '''
     # Generate Tables
     with console.status("[bold green]Generating Report...") as status:
-        # Best Practice Headers Table
-        bp_table = Table(title="Best Practice Headers")
-        bp_table.add_column("Header")
-        bp_table.add_column("Value")
-        bp_table.add_column("Expected Value")
-        for header, value in results['bestPracticeHeaders'].items():
-            bp_table.add_row(header, value, requiredHeaders[header], style="green")
+        # If verbose is enabled, print all headers
+        if options['verbose']:
+            # Best Practice Headers Table
+            bp_table = Table(title="Best Practice Headers")
+            bp_table.add_column("Header")
+            bp_table.add_column("Value")
+            bp_table.add_column("Expected Value")
+            for header, value in results['bestPracticeHeaders'].items():
+                bp_table.add_row(header, value, requiredHeaders[header], style="green")
 
         # Not Best Practice Headers Table
-        nbp_table = Table(title="Not Best Practice Headers")
-        nbp_table.add_column("Header")
-        nbp_table.add_column("Value")
-        nbp_table.add_column("Expected Value")
-        for header, value in results['notBestPracticeHeaders'].items():
-            nbp_table.add_row(header, value, requiredHeaders[header], style="yellow")
+        if len(results['notBestPracticeHeaders']) > 0 or options['verbose']:
+            nbp_table = Table(title="Not Best Practice Headers")
+            nbp_table.add_column("Header")
+            nbp_table.add_column("Value")
+            nbp_table.add_column("Expected Value")
+            for header, value in results['notBestPracticeHeaders'].items():
+                nbp_table.add_row(header, value, requiredHeaders[header], style="yellow")
 
         # Missing Headers Table
         mi_table = Table(title="Missing Headers")
@@ -109,8 +112,10 @@ def outputConfigProposalResults(results, requiredHeaders):
         console.log("Configuration Proposal Report generated")
 
     # Print tables
-    console.print(bp_table)
-    console.print(nbp_table)
+    if options['verbose']:
+        console.print(bp_table)
+    if len(results['notBestPracticeHeaders']) > 0 or options['verbose']:
+        console.print(nbp_table)
     console.print(mi_table)
 
     # Print count of each type of header
@@ -131,24 +136,27 @@ def outputInfoDisclosureResults(results, requiredHeaders):
         for header, value in results['presentHeaders'].items():
             pe_table.add_row(header, value, style="red")
 
-        # Missing Headers Table
-        mi_table = Table(title="Missing Headers")
-        mi_table.add_column("Header")
-        for header, value in results['missingHeaders'].items():
-            mi_table.add_row(header, style="green")
+        # If verbose is enabled, print all headers
+        if options['verbose']:
+            # Missing Headers Table
+            mi_table = Table(title="Missing Headers")
+            mi_table.add_column("Header")
+            for header, value in results['missingHeaders'].items():
+                mi_table.add_row(header, style="green")
 
         console.log("Information Disclosure Report generated")
 
     # Print tables
     console.print(pe_table)
-    console.print(mi_table)
+    if options['verbose']:
+        console.print(mi_table)
 
     # Print count of each type of header
     console.print(f"Present Headers: {len(results['presentHeaders'])}", style="red")
     console.print(f"Missing Headers: {len(results['missingHeaders'])}", style="green")
 
 # Scan the target URL for configuration headers
-def configScan():
+def configScan(URL):
     '''Performs a scan of the target URL for configuration headers.
     '''
     # Fetch latest best practices
@@ -170,7 +178,7 @@ def configScan():
     outputConfigProposalResults(configResults, configProposedHeaders)
 
 # Scan the target URL for information disclosure headers
-def disclosureScan():
+def disclosureScan(URL):
     '''Performs a scan of the target URL for information disclosure headers.
     '''
     # Fetch latest best practices
@@ -192,7 +200,7 @@ def disclosureScan():
     outputInfoDisclosureResults(disclosureResults, infoDisclosureHeaders)
 
 # Full scan of the target URL
-def fullScan():
+def fullScan(URL):
     '''Performs a full scan of the target URL.
     '''
     # Fetch latest best practices
@@ -223,9 +231,10 @@ def helpMenu():
     '''
     helpPanel = Panel.fit('''[bold]Description:[/bold]
 A simple script to scan a URL for security headers. The script will compare the headers of the target URL with the latest best practices from the OWASP Secure Headers project.
+By default, the script will perform a full scan of the target URL and output the headers that should be changed to improve security. To show all headers, use the -v or --verbose flag.
 
 [bold]Simple Usage:[/bold]
-python scanner.py -u [bold]URL[/bold] -f
+python scanner.py -u [bold]URL[/bold]
 
 [bold]Options:[/bold]
 -c, --config        Perform a scan of the target URL for configuration headers
@@ -236,7 +245,9 @@ python scanner.py -u [bold]URL[/bold] -f
 -v, --verbose       Display verbose output
 
 [bold]Examples:[/bold]
-python scanner.py https://example.com''', title="Help Menu:", title_align="left")
+python scanner.py -u https://example.com            Perform a full scan of the target URL
+python scanner.py -u https://example.com -c         Perform a scan of the target URL for configuration headers
+python scanner.py -u https://example.com -d -v      Perform a scan of the target URL for information disclosure headers and display all headers''', title="Help Menu:", title_align="left")
 
     console.print(helpPanel)
 
@@ -244,6 +255,7 @@ def main():
     # Init rich console
     global console
     console = Console()
+    global URL
 
     # Check if no arguments are passed default to full scan with local URL
     if len(sys.argv) == 1:
@@ -273,25 +285,25 @@ def main():
         if len(sys.argv) == 3:
             console.print("No scan type specified, defaulting to full scan")
             console.print(URL)
-            fullScan()
+            fullScan(URL)
             return 0
     elif '--url' in sys.argv:
         URL = sys.argv[sys.argv.index('--url')+1]
         if len(sys.argv) == 3:
             console.print("No scan type specified, defaulting to full scan")
             console.print(URL)
-            fullScan()
+            fullScan(URL)
             return 0
 
     # Check for scan type
     if '-f' in sys.argv or '--full' in sys.argv:
-        fullScan()
+        fullScan(URL)
         return 0
     if '-c' in sys.argv or '--config' in sys.argv:
-        configScan()
+        configScan(URL)
         return 0
     if '-d' in sys.argv or '--disclosure' in sys.argv:
-        disclosureScan()
+        disclosureScan(URL)
         return 0
 
     # Catch all if nothing happened (shouldn't be reached)
